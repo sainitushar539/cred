@@ -265,12 +265,65 @@ const goalOptions: Option[] = [
   { label: 'Just exploring', value: 'exploring' },
 ];
 
+const splitName = (value?: string | null) => {
+  const parts = (value || '').trim().split(/\s+/).filter(Boolean);
+  return { first: parts[0] || '', last: parts.slice(1).join(' ') };
+};
+
+const mapSavedGoal = (value?: unknown) => {
+  const goals = Array.isArray(value) ? value : value ? [value] : [];
+  const normalized = goals.map((item) => String(item));
+  if (normalized.some((item) => ['funding', 'loan'].includes(item))) return 'loan';
+  if (normalized.some((item) => ['credit'].includes(item))) return 'credit';
+  if (normalized.some((item) => ['lead_gen', 'coaching', 'grow', 'growth'].includes(item))) return 'grow';
+  if (normalized.some((item) => ['financial_health', 'business_plan', 'documents'].includes(item))) return 'fundability';
+  if (normalized.length > 0) return 'exploring';
+  return '';
+};
+
+const mapCredit = (value?: unknown) => {
+  const creditMap: Record<string, string> = {
+    excellent: '780+',
+    good: '740-779',
+    fair: '680-739',
+    'below-average': '600-680',
+    poor: '<600',
+    unsure: '<600',
+  };
+  return creditMap[String(value || '')] || String(value || '');
+};
+
+const mapRevenue = (value?: unknown) => {
+  const revMap: Record<string, string> = {
+    'pre-revenue': 'pre',
+    'under-50k': 'under100k',
+    '50k-100k': 'under100k',
+    '100k-250k': '100k-250k',
+    '250k-500k': '250k-1m',
+    '500k-1m': '250k-1m',
+    '1m-plus': '1m+',
+  };
+  return revMap[String(value || '')] || String(value || '');
+};
+
+const mapTimeInBusiness = (value?: unknown) => {
+  const timeMap: Record<string, string> = {
+    'pre-revenue': 'not-started',
+    'under-1': '<2',
+    '1-2': '<2',
+    '3-5': '2-10',
+    '5-plus': '10+',
+  };
+  return timeMap[String(value || '')] || String(value || '');
+};
+
 const OnboardingPage = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [phase, setPhase] = useState<Phase>('contact');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [hydrating, setHydrating] = useState(true);
   const [hasLeadData, setHasLeadData] = useState(false);
 
   const [goal, setGoal] = useState('');
@@ -281,57 +334,6 @@ const OnboardingPage = () => {
   const [businessName, setBusinessName] = useState('');
   const [website, setWebsite] = useState('');
   const [noWebsite, setNoWebsite] = useState(false);
-
-  // Pre-fill from lead capture data
-  useEffect(() => {
-    const leadJson = sessionStorage.getItem('leadData');
-    if (leadJson) {
-      try {
-        const lead = JSON.parse(leadJson);
-        const nameParts = (lead.contactName || '').split(' ');
-        setFirstName(nameParts[0] || '');
-        setLastName(nameParts.slice(1).join(' ') || '');
-        setEmail(lead.email || '');
-        setPhone(lead.phone || '');
-        setBusinessName(lead.companyName || '');
-        setHasLeadData(true);
-
-        // Map intake credit score to onboarding values
-        const creditMap: Record<string, string> = {
-          'excellent': '780+', 'good': '740-779', 'fair': '680-739',
-          'below-average': '600-680', 'poor': '<600', 'unsure': '<600',
-        };
-        if (lead.creditScore && creditMap[lead.creditScore]) {
-          setCreditScore(creditMap[lead.creditScore]);
-        }
-
-        // Map intake revenue to onboarding values
-        const revMap: Record<string, string> = {
-          'pre-revenue': 'pre', 'under-50k': 'under100k', '50k-100k': 'under100k',
-          '100k-250k': '100k-250k', '250k-500k': '250k-1m', '500k-1m': '250k-1m', '1m-plus': '1m+',
-        };
-        if (lead.annualRevenue && revMap[lead.annualRevenue]) {
-          setRevenue(revMap[lead.annualRevenue]);
-        }
-
-        // Map intake time in business to onboarding values
-        const timeMap: Record<string, string> = {
-          'pre-revenue': 'not-started', 'under-1': '<2', '1-2': '<2',
-          '3-5': '2-10', '5-plus': '10+',
-        };
-        if (lead.timeInBusiness && timeMap[lead.timeInBusiness]) {
-          setTimeInBusiness(timeMap[lead.timeInBusiness]);
-        }
-
-        // Skip straight to results since we have all the data
-        if (lead.creditScore && lead.annualRevenue && lead.timeInBusiness) {
-          setPhase('results');
-        } else {
-          setPhase('snapshot');
-        }
-      } catch { /* ignore */ }
-    }
-  }, []);
 
   const [creditScore, setCreditScore] = useState('');
   const [revenue, setRevenue] = useState('');
@@ -349,6 +351,118 @@ const OnboardingPage = () => {
   const [fundingPurposes, setFundingPurposes] = useState<string[]>([]);
   const [fundingTimeline, setFundingTimeline] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
+
+  const hydrateFromLead = (lead: any) => {
+    const contactName = lead?.contactName || lead?.contact_name || '';
+    const companyName = lead?.companyName || lead?.company_name || lead?.name || '';
+    const responses = (lead?.responses && typeof lead.responses === 'object' ? lead.responses : {}) as Record<string, any>;
+    const savedGoals = lead?.needs || lead?.goals || responses.goals;
+    const savedCredit = mapCredit(lead?.creditScore || lead?.credit_score_range || responses.creditScore);
+    const savedRevenue = mapRevenue(lead?.annualRevenue || responses.annualRevenue);
+    const savedTime = mapTimeInBusiness(lead?.timeInBusiness || responses.timeInBusiness);
+    const savedWebsite = lead?.website || responses.website || '';
+    const nameParts = splitName(contactName);
+
+    if (nameParts.first) setFirstName((prev) => prev || nameParts.first);
+    if (nameParts.last) setLastName((prev) => prev || nameParts.last);
+    if (lead?.email) setEmail((prev) => prev || lead.email);
+    if (lead?.phone) setPhone((prev) => prev || lead.phone);
+    if (companyName) setBusinessName((prev) => prev || companyName);
+    if (savedWebsite) setWebsite((prev) => prev || savedWebsite);
+    if (savedGoals) setGoal((prev) => prev || mapSavedGoal(savedGoals));
+    if (savedCredit) setCreditScore((prev) => prev || savedCredit);
+    if (savedRevenue) setRevenue((prev) => prev || savedRevenue);
+    if (savedTime) setTimeInBusiness((prev) => prev || savedTime);
+    setHasLeadData(true);
+
+    if (savedCredit && savedRevenue && savedTime) {
+      setPhase('results');
+    } else if (contactName || companyName || savedCredit || savedRevenue || savedTime) {
+      setPhase('snapshot');
+    }
+  };
+
+  const hydrateFromCachedLead = () => {
+    try {
+      const leadJson = sessionStorage.getItem('leadData');
+      if (!leadJson) return false;
+      hydrateFromLead(JSON.parse(leadJson));
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    let cancelled = false;
+
+    const loadSavedIntake = async () => {
+      setHydrating(true);
+
+      if (!user) {
+        hydrateFromCachedLead();
+        setHydrating(false);
+        return;
+      }
+
+      const userEmail = user.email?.trim() || '';
+
+      try {
+        const [{ data: existingBusiness }, { data: profile }, leadResult] = await Promise.all([
+          supabase
+            .from('businesses')
+            .select('id')
+            .eq('user_id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('profiles')
+            .select('full_name, email, phone')
+            .eq('user_id', user.id)
+            .maybeSingle(),
+          userEmail
+            ? supabase
+                .from('leads')
+                .select('contact_name, email, phone, company_name, credit_score_range, needs, responses, updated_at')
+                .ilike('email', userEmail)
+                .order('updated_at', { ascending: false })
+                .limit(1)
+                .maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+
+        if (cancelled) return;
+
+        if (existingBusiness?.id) {
+          navigate('/client-dashboard', { replace: true });
+          return;
+        }
+
+        const profileName = splitName(profile?.full_name);
+        if (profileName.first) setFirstName(profileName.first);
+        if (profileName.last) setLastName(profileName.last);
+        if (profile?.email || userEmail) setEmail(profile?.email || userEmail);
+        if (profile?.phone) setPhone(profile.phone);
+
+        if (leadResult.data) {
+          hydrateFromLead(leadResult.data);
+        } else {
+          hydrateFromCachedLead();
+        }
+      } finally {
+        if (!cancelled) setHydrating(false);
+      }
+    };
+
+    void loadSavedIntake();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [authLoading, user?.id, user?.email, navigate]);
 
   useEffect(() => {
     if (user?.email && !email) setEmail(user.email);
@@ -396,21 +510,53 @@ const OnboardingPage = () => {
         { label: 'Insurance Documentation', complete: false },
       ];
       const notesArr = [
-        `Credit: ${creditScore}`, `Revenue: ${revenue}`, `Time: ${timeInBusiness}`,
+        `Goal: ${goal}`, `Credit: ${creditScore}`, `Revenue: ${revenue}`, `Time: ${timeInBusiness}`,
         `Location: ${bizLocation}`, `Stage: ${bizStage}`, `Profitable: ${profitable}`,
         `Financials: ${financials}`, `Cashflow: ${cashflow}`, `Customers: ${customers}`,
         `Revenue model: ${revenueModel}`, `Bottleneck: ${bottleneck}`,
         `Funding purposes: ${fundingPurposes.join(', ')}`, `Timeline: ${fundingTimeline}`,
         `Description: ${bizDescription}`, `Website: ${website}`,
       ];
-      await supabase.from('businesses').insert({
+
+      const fullName = `${firstName} ${lastName}`.trim();
+      const profilePayload = {
+        user_id: targetUserId,
+        full_name: fullName || null,
+        email: email.trim() || null,
+        phone: phone.trim() || null,
+      };
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .maybeSingle();
+      if (existingProfile?.id) {
+        const { error: profileError } = await supabase.from('profiles').update(profilePayload).eq('id', existingProfile.id);
+        if (profileError) throw profileError;
+      } else {
+        const { error: profileError } = await supabase.from('profiles').insert(profilePayload);
+        if (profileError) throw profileError;
+      }
+
+      const businessPayload = {
         user_id: targetUserId, name: businessName || `${firstName}'s Business`,
         industry: null, capital_need: null, checklist, score: fundabilityScore || 10,
         status: 'assessment', notes: notesArr.join('. '),
         top_gap: fundabilityScore < 60 ? 'Credit & Revenue' : 'Documentation',
         loan_product: fundabilityScore >= 80 ? 'standard' : fundabilityScore >= 60 ? 'revenue-based' : 'building',
-      });
-      if (phone) await supabase.from('profiles').update({ phone }).eq('user_id', targetUserId);
+      };
+      const { data: existingBusiness } = await supabase
+        .from('businesses')
+        .select('id')
+        .eq('user_id', targetUserId)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { error: businessError } = existingBusiness?.id
+        ? await supabase.from('businesses').update(businessPayload).eq('id', existingBusiness.id)
+        : await supabase.from('businesses').insert(businessPayload);
+      if (businessError) throw businessError;
+
       navigate('/client-dashboard', { replace: true });
     } catch (e: any) { setError(e.message || 'Something went wrong'); }
     finally { setLoading(false); }
@@ -428,6 +574,20 @@ const OnboardingPage = () => {
     { label: 'Account', phase: 'signup' },
   ];
   const stepIndex = { contact: 0, snapshot: 1, results: 2, booking: 3, paywall: 4, 'deep-a': 5, 'deep-b': 5, 'deep-c': 5, 'deep-d': 5, signup: 6 }[phase];
+
+  if (hydrating) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <PublicNav />
+        <div className="flex-1 flex items-center justify-center px-6">
+          <div className="bg-background rounded-2xl border border-border shadow-sm px-8 py-6 text-center">
+            <Sparkles className="w-6 h-6 text-primary mx-auto mb-2 animate-pulse" />
+            <div className="text-sm text-muted-foreground">Checking your saved business snapshot...</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -803,4 +963,3 @@ const OnboardingPage = () => {
 };
 
 export default OnboardingPage;
-

@@ -10,26 +10,40 @@ export const useUserRole = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     if (!user) {
       setRole(null);
       setLoading(false);
       return;
     }
 
+    setRole(null);
+    setLoading(true);
+
     supabase
       .from('user_roles')
       .select('role')
       .eq('user_id', user.id)
       .then(({ data }) => {
+        if (!mounted) return;
         if (data && data.length > 0) {
-          // If user has admin role, use admin; otherwise client
           const isAdmin = data.some((r: any) => r.role === 'admin');
           setRole(isAdmin ? 'admin' : 'client');
         } else {
           setRole('client');
         }
         setLoading(false);
+      })
+      .catch(() => {
+        if (!mounted) return;
+        setRole('client');
+        setLoading(false);
       });
+
+    return () => {
+      mounted = false;
+    };
   }, [user]);
 
   return { role, isAdmin: role === 'admin', isClient: role === 'client', loading };

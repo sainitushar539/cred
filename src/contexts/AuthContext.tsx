@@ -50,6 +50,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const signOut = async () => {
+    try {
+      localStorage.removeItem('cs_get_started_progress');
+      localStorage.removeItem('cs_pending_funding_snapshot');
+      sessionStorage.removeItem('leadData');
+      sessionStorage.removeItem('leadCaptured');
+      sessionStorage.removeItem('onboardingSnapshot');
+      sessionStorage.removeItem('onboardingSnapshotKey');
+      sessionStorage.removeItem('cs_role_cache');
+      sessionStorage.removeItem('cs_dashboard_page');
+    } catch { /* ignore storage cleanup failures */ }
+
+    setUser(null);
+    setSession(null);
     await supabase.auth.signOut();
   };
 

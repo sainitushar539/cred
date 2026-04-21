@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
 import { Shield, Eye, EyeOff, Lock } from 'lucide-react';
 
 /**
@@ -17,9 +18,12 @@ const AgentLoginPage = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { user, loading: authLoading } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
-  if (!authLoading && user) return <Navigate to="/agent-dashboard" replace />;
+  if (!authLoading && user && !roleLoading) {
+    return <Navigate to={role === 'admin' ? '/agent-dashboard' : '/client-dashboard'} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +36,7 @@ const AgentLoginPage = () => {
     }
 
     setLoading(true);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    const { data, error: signInError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password,
     });
@@ -42,6 +46,15 @@ const AgentLoginPage = () => {
       setError(signInError.message);
       return;
     }
+
+    const { data: roles } = await supabase.from('user_roles').select('role').eq('user_id', data.user.id);
+    const isAdmin = roles?.some((item: any) => item.role === 'admin');
+    if (!isAdmin) {
+      await supabase.auth.signOut();
+      setError('Access denied. This account is not assigned an administrator role.');
+      return;
+    }
+
     navigate('/agent-dashboard', { replace: true });
   };
 

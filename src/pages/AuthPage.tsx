@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUserRole } from '@/hooks/useUserRole';
+import { consumePendingFundingSnapshot, persistFundingSnapshot } from '@/lib/clientDashboardData';
 import { Brain, Eye, EyeOff, KeyRound, Shield } from 'lucide-react';
 
 /**
@@ -19,9 +21,25 @@ const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { user, loading: authLoading } = useAuth();
+  const { role, loading: roleLoading } = useUserRole();
   const navigate = useNavigate();
 
-  if (!authLoading && user) return <Navigate to="/client-dashboard" replace />;
+  if (!authLoading && user && !roleLoading) {
+    return <Navigate to={role === 'admin' ? '/agent-dashboard' : '/client-dashboard'} replace />;
+  }
+
+  const getRoleForUser = async (userId: string) => {
+    const { data } = await supabase.from('user_roles').select('role').eq('user_id', userId);
+    return data?.some((item: any) => item.role === 'admin') ? 'admin' : 'client';
+  };
+
+  const persistPendingClientSnapshot = async (userId: string, nextRole: string) => {
+    if (nextRole !== 'client') return;
+    const pending = consumePendingFundingSnapshot();
+    if (pending) {
+      await persistFundingSnapshot(userId, pending);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,16 +79,20 @@ const AuthPage = () => {
         }
 
         if (data.session) {
-          navigate('/client-dashboard', { replace: true });
+          const nextRole = await getRoleForUser(data.user.id);
+          await persistPendingClientSnapshot(data.user.id, nextRole);
+          navigate(nextRole === 'admin' ? '/agent-dashboard' : '/client-dashboard', { replace: true });
         } else {
           setMessage('Account created! Check your email for the verification link, then sign in.');
         }
       } else {
-        const { error: signInError } = await supabase.auth.signInWithPassword({
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
           email: cleanEmail, password,
         });
         if (signInError) throw signInError;
-        navigate('/client-dashboard', { replace: true });
+        const nextRole = data.user ? await getRoleForUser(data.user.id) : 'client';
+        if (data.user) await persistPendingClientSnapshot(data.user.id, nextRole);
+        navigate(nextRole === 'admin' ? '/agent-dashboard' : '/client-dashboard', { replace: true });
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');

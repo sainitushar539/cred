@@ -5,6 +5,8 @@ import AdviceCard from './AdviceCard';
 import BookingCTA from './BookingCTA';
 import { useJourneyAdvice } from './useJourneyAdvice';
 import type { JourneyProps } from './types';
+import { useAuth } from '@/contexts/AuthContext';
+import { persistFundingSnapshot, savePendingFundingSnapshot } from '@/lib/clientDashboardData';
 
 const creditOpts = [
   { label: '780+', value: '780+' },
@@ -30,6 +32,7 @@ const timeOpts = [
 type Phase = 'questions' | 'results';
 
 const FundingJourney = ({ lead, onBack }: JourneyProps) => {
+  const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('questions');
   const [credit, setCredit] = useState('');
   const [revenue, setRevenue] = useState('');
@@ -47,6 +50,21 @@ const FundingJourney = ({ lead, onBack }: JourneyProps) => {
 
   const handleContinue = () => {
     setPhase('results');
+    const snapshot = {
+      businessName: lead.name || 'My Business',
+      email: lead.email,
+      phone: lead.phone,
+      website: lead.website,
+      credit,
+      revenue,
+      timeInBusiness: time,
+      score,
+      source: 'homepage_funding_journey',
+    };
+    savePendingFundingSnapshot(snapshot);
+    if (user?.id) {
+      void persistFundingSnapshot(user.id, snapshot);
+    }
     fetchAdvice('funding', { name: lead.name, credit, revenue, time, score });
   };
 

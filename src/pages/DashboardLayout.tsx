@@ -1,4 +1,5 @@
 import { CSSProperties, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -45,11 +46,22 @@ const DashboardLayout = () => {
   const { signOut } = useAuth();
   const { isAdmin, loading } = useUserRole();
   const isMobile = useIsMobile();
+  const navigate = useNavigate();
 
   const handleNavigate = (page: string) => {
     setActivePage(page);
+    try { sessionStorage.setItem('cs_dashboard_page', page); } catch { /* ignore */ }
     setSidebarOpen(false);
   };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate(isAdmin ? '/agent-login' : '/auth', { replace: true });
+  };
+
+  useEffect(() => {
+    setActivePage('dashboard');
+  }, [isAdmin]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -132,12 +144,12 @@ const DashboardLayout = () => {
           <Sidebar
             activePage={activePage}
             onNavigate={handleNavigate}
-            onSignOut={signOut}
+            onSignOut={handleSignOut}
             collapsed={sidebarCollapsed}
             onToggleCollapsed={() => setSidebarCollapsed((value) => !value)}
           />
         ) : (
-          <ClientSidebar activePage={activePage} onNavigate={handleNavigate} onSignOut={signOut} />
+          <ClientSidebar activePage={activePage} onNavigate={handleNavigate} onSignOut={handleSignOut} />
         )}
       </div>
 

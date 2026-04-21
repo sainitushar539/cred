@@ -39,6 +39,16 @@ const App = () => (
                 <DashboardLayout />
               </ProtectedRoute>
             } />
+            <Route path="/client-dashboard" element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            } />
+            <Route path="/agent-dashboard" element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            } />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

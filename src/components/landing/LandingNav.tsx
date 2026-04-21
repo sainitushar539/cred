@@ -77,7 +77,7 @@ const LandingNav = () => {
 
             {user ? (
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/client-dashboard')}
                 className="bg-gradient-to-r from-primary to-[hsl(260,70%,60%)] text-white text-xs font-semibold px-5 py-2 border-none cursor-pointer rounded-lg transition-all hover:shadow-md hover:-translate-y-0.5 flex items-center gap-1.5"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" />
@@ -116,7 +116,7 @@ const LandingNav = () => {
           <div className="hidden md:flex min-[900px]:hidden items-center gap-2">
             {user ? (
               <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/client-dashboard')}
                 className="bg-gradient-to-r from-primary to-[hsl(260,70%,60%)] text-white text-xs font-semibold px-3.5 py-2 border-none cursor-pointer rounded-lg flex items-center gap-1.5 whitespace-nowrap"
               >
                 <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
@@ -198,7 +198,7 @@ const LandingNav = () => {
           <div className="pb-8">
             {user ? (
               <button
-                onClick={() => { setMobileOpen(false); navigate('/dashboard'); }}
+                onClick={() => { setMobileOpen(false); navigate('/client-dashboard'); }}
                 className="w-full bg-gradient-to-r from-primary to-[hsl(260,70%,60%)] text-white font-semibold text-sm py-3.5 rounded-xl border-none cursor-pointer flex items-center justify-center gap-2"
               >
                 <LayoutDashboard className="w-4 h-4" /> My Dashboard
@@ -234,3 +234,4 @@ const LandingNav = () => {
 };
 
 export default LandingNav;
+

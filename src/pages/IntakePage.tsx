@@ -10,7 +10,6 @@ import {
   BUSINESS_NEEDS,
   TIME_IN_BUSINESS,
   ANNUAL_REVENUE,
-  determineFunnel,
 } from '@/data/intakeOptions';
 
 const TOTAL_STEPS = 4;
@@ -245,14 +244,6 @@ const IntakePage = () => {
 
   const handleSubmit = async () => {
     setSubmitting(true);
-    const funnelResult = determineFunnel({
-      needs: form.needs,
-      creditScore: form.creditScore,
-      revenue: form.annualRevenue,
-      timeInBusiness: form.timeInBusiness,
-      amountSeeking: form.amountSeeking,
-    });
-
     const amountEntry = FUNDING_AMOUNTS.find(a => a.value === form.amountSeeking);
 
     try {
@@ -266,7 +257,6 @@ const IntakePage = () => {
         credit_score_range: form.creditScore,
         amount_seeking: amountEntry?.amount ?? null,
         needs: form.needs,
-        funnel: funnelResult.funnel,
         responses: {
           timeInBusiness: form.timeInBusiness,
           annualRevenue: form.annualRevenue,
@@ -288,9 +278,6 @@ const IntakePage = () => {
         annualRevenue: form.annualRevenue,
         amountSeeking: form.amountSeeking,
         needs: form.needs,
-        funnel: funnelResult.funnel,
-        funnelLabel: funnelResult.label,
-        funnelDescription: funnelResult.description,
       }));
       sessionStorage.setItem('leadCaptured', 'true');
       navigate('/onboarding');
@@ -474,7 +461,7 @@ const IntakePage = () => {
           {step === 4 && (
             <div>
               <h2 className="text-[28px] font-extrabold text-white mb-2">A few more details.</h2>
-              <p className="text-[16px] text-white/60 mb-8">This helps us understand where you are and what funnel fits best.</p>
+              <p className="text-[16px] text-white/60 mb-8">This helps us understand your funding position and next best step.</p>
 
               <div className="space-y-6">
                 {/* Credit Score */}

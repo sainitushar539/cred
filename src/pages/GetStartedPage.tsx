@@ -420,7 +420,7 @@ const Nav = ({ step, hasUser }: { step?: string; hasUser?: boolean }) => (
 
       {hasUser ? (
         <Link
-          to="/dashboard"
+          to="/client-dashboard"
           className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-primary to-[hsl(260,70%,60%)] px-3.5 py-2 text-xs font-semibold text-white no-underline"
         >
           <LayoutDashboard className="w-3.5 h-3.5" /> Dashboard
@@ -454,3 +454,4 @@ const ProgressBar = ({ current, total }: { current: number; total: number }) => 
 );
 
 export default GetStartedPage;
+

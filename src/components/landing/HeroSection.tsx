@@ -80,7 +80,7 @@ const HeroSection = () => {
 
         <ScrollReveal delay={0.1}>
           <p className="text-base md:text-lg text-white/70 leading-relaxed max-w-lg mx-auto mb-8">
-            Whether you're chasing funding, building credit, or ready to scale — we'll point you in the right direction. Free. Personalized. AI-powered.
+            Whether you're securing funding, building credit, or ready to scale. we'll show you exactly what to do next. Free Snapshot. Expert-Built Plan. Supported by AI, guided by real industry professionals.
           </p>
         </ScrollReveal>
 
@@ -116,3 +116,4 @@ const HeroSection = () => {
 };
 
 export default HeroSection;
+

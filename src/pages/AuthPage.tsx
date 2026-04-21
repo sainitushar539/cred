@@ -21,7 +21,7 @@ const AuthPage = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  if (!authLoading && user) return <Navigate to="/dashboard" replace />;
+  if (!authLoading && user) return <Navigate to="/client-dashboard" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,7 +61,7 @@ const AuthPage = () => {
         }
 
         if (data.session) {
-          navigate('/dashboard', { replace: true });
+          navigate('/client-dashboard', { replace: true });
         } else {
           setMessage('Account created! Check your email for the verification link, then sign in.');
         }
@@ -70,7 +70,7 @@ const AuthPage = () => {
           email: cleanEmail, password,
         });
         if (signInError) throw signInError;
-        navigate('/dashboard', { replace: true });
+        navigate('/client-dashboard', { replace: true });
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong.');

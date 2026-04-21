@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, type HTMLInputTypeAttribute, type ReactNode } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 import { Brain, Sparkles, ArrowRight, ArrowLeft, Check, Lock, Zap, Target, DollarSign, FileText, TrendingUp, Play, CreditCard } from 'lucide-react';
 import PublicNav from '@/components/PublicNav';
 
@@ -266,6 +267,7 @@ const goalOptions: Option[] = [
 
 const OnboardingPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>('contact');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -348,6 +350,10 @@ const OnboardingPage = () => {
   const [fundingTimeline, setFundingTimeline] = useState('');
   const [signupPassword, setSignupPassword] = useState('');
 
+  useEffect(() => {
+    if (user?.email && !email) setEmail(user.email);
+  }, [user, email]);
+
   const fundabilityScore = useMemo(() => {
     const cs = creditScoreOptions.find(o => o.value === creditScore)?.points || 0;
     const rv = revenueOptions.find(o => o.value === revenue)?.points || 0;
@@ -361,13 +367,18 @@ const OnboardingPage = () => {
   const handleSignUp = async () => {
     setError(''); setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email, password: signupPassword,
-        options: { data: { full_name: `${firstName} ${lastName}` }, emailRedirectTo: window.location.origin },
-      });
-      if (authError) throw authError;
-      if (!authData.user) throw new Error('Unable to create your account.');
-      if (!authData.session) { setError('Check your email for a verification link, then sign in.'); setLoading(false); return; }
+      let targetUserId = user?.id;
+
+      if (!targetUserId) {
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email, password: signupPassword,
+          options: { data: { full_name: `${firstName} ${lastName}` }, emailRedirectTo: window.location.origin },
+        });
+        if (authError) throw authError;
+        if (!authData.user) throw new Error('Unable to create your account.');
+        if (!authData.session) { setError('Check your email for a verification link, then sign in.'); setLoading(false); return; }
+        targetUserId = authData.user.id;
+      }
 
       const checklist = [
         { label: 'Business License / Registration', complete: false },
@@ -393,14 +404,14 @@ const OnboardingPage = () => {
         `Description: ${bizDescription}`, `Website: ${website}`,
       ];
       await supabase.from('businesses').insert({
-        user_id: authData.user.id, name: businessName || `${firstName}'s Business`,
+        user_id: targetUserId, name: businessName || `${firstName}'s Business`,
         industry: null, capital_need: null, checklist, score: fundabilityScore || 10,
         status: 'assessment', notes: notesArr.join('. '),
         top_gap: fundabilityScore < 60 ? 'Credit & Revenue' : 'Documentation',
         loan_product: fundabilityScore >= 80 ? 'standard' : fundabilityScore >= 60 ? 'revenue-based' : 'building',
       });
-      if (phone) await supabase.from('profiles').update({ phone }).eq('user_id', authData.user.id);
-      navigate('/dashboard', { replace: true });
+      if (phone) await supabase.from('profiles').update({ phone }).eq('user_id', targetUserId);
+      navigate('/client-dashboard', { replace: true });
     } catch (e: any) { setError(e.message || 'Something went wrong'); }
     finally { setLoading(false); }
   };
@@ -760,7 +771,7 @@ const OnboardingPage = () => {
           {/* ═══════ STEP 6: SIGNUP ═══════ */}
           {phase === 'signup' && (
             <div className="animate-fade-up">
-              <SectionTitle title="Create your account" subtitle="Last step — access your full AI-powered dashboard" />
+              <SectionTitle title={user ? 'Complete your profile' : 'Create your account'} subtitle="Last step — access your full AI-powered dashboard" />
               <div className="bg-background rounded-2xl border border-border shadow-sm p-6">
                 <div className="flex items-center gap-4 bg-primary/[0.04] rounded-xl p-4 mb-6 border border-primary/10">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -772,12 +783,14 @@ const OnboardingPage = () => {
                   </div>
                 </div>
                 <InputField label="Email" value={email} onChange={(v: string) => { setEmail(v); setError(''); }} placeholder="you@company.com" type="email" required />
-                <InputField label="Password" value={signupPassword} onChange={(v: string) => { setSignupPassword(v); setError(''); }} placeholder="Min 6 characters" type="password" required />
+                {!user && (
+                  <InputField label="Password" value={signupPassword} onChange={(v: string) => { setSignupPassword(v); setError(''); }} placeholder="Min 6 characters" type="password" required />
+                )}
               </div>
               <div className="flex gap-3 mt-6">
                 <BackBtn onClick={() => setPhase('deep-d')} />
-                <PrimaryBtn onClick={handleSignUp} disabled={loading || !email.trim() || signupPassword.length < 6}>
-                  {loading ? 'Creating...' : 'Launch Dashboard'} <ArrowRight className="w-4 h-4" />
+                <PrimaryBtn onClick={handleSignUp} disabled={loading || !email.trim() || (!user && signupPassword.length < 6)}>
+                  {loading ? 'Saving...' : user ? 'Complete Onboarding' : 'Launch Dashboard'} <ArrowRight className="w-4 h-4" />
                 </PrimaryBtn>
               </div>
               {error && <p className="text-sm text-destructive text-center mt-4 bg-destructive/5 rounded-xl px-4 py-3">{error}</p>}
@@ -790,3 +803,4 @@ const OnboardingPage = () => {
 };
 
 export default OnboardingPage;
+

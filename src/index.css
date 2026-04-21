@@ -224,3 +224,135 @@
   height: 1px;
   background: linear-gradient(90deg, transparent, hsl(var(--border)), transparent);
 }
+
+/* ========== ADMIN ENTERPRISE POLISH ========== */
+.admin-panel {
+  color-scheme: dark;
+}
+
+.admin-panel main {
+  background: #0B0F19;
+}
+
+.admin-panel .bg-card,
+.admin-panel .glass-card,
+.admin-panel .ai-card {
+  background: #111827;
+  border-color: #1A2233;
+  border-radius: 6px;
+  box-shadow: 0 1px 0 rgb(255 255 255 / 0.03) inset;
+}
+
+.admin-panel .bg-background {
+  background: #0B0F19;
+}
+
+.admin-panel .bg-secondary,
+.admin-panel .bg-muted,
+.admin-panel .bg-navy-3 {
+  background: #1A2233;
+}
+
+.admin-panel table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.admin-panel thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #111827;
+  color: #9CA3AF;
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.admin-panel tbody tr {
+  transition: background-color 180ms ease, box-shadow 180ms ease;
+}
+
+.admin-panel tbody tr:hover {
+  background: rgb(255 255 255 / 0.025);
+}
+
+.admin-panel td,
+.admin-panel th {
+  border-color: hsl(220 22% 18% / 0.72) !important;
+}
+
+.admin-panel input,
+.admin-panel select,
+.admin-panel textarea {
+  background: #111827;
+  border-color: #1A2233;
+  color: #E5E7EB;
+  box-shadow: none;
+  border-radius: 6px;
+}
+
+.admin-panel input::placeholder,
+.admin-panel textarea::placeholder {
+  color: #5F6B7D;
+}
+
+.admin-panel input:focus,
+.admin-panel select:focus,
+.admin-panel textarea:focus {
+  border-color: rgb(212 175 55 / 0.55);
+  outline: none;
+}
+
+.admin-panel button {
+  transition-duration: 180ms;
+}
+
+.admin-panel .text-primary {
+  color: #D4AF37;
+}
+
+.admin-panel .bg-primary\/10 {
+  background: rgb(212 175 55 / 0.11);
+}
+
+.admin-panel [class*="bg-gradient-to-r"],
+.admin-panel [class*="bg-gradient-to-br"] {
+  background-image: none !important;
+  background-color: rgb(212 175 55 / 0.12);
+}
+
+.admin-panel button[class*="bg-gradient-to-r"],
+.admin-panel button[class*="bg-gradient-to-br"] {
+  background-color: #D4AF37;
+  color: #0B0F19;
+}
+
+.admin-panel .border-border {
+  border-color: #1A2233;
+}
+
+.admin-panel .rounded-xl,
+.admin-panel .rounded-2xl {
+  border-radius: 6px;
+}
+
+.admin-panel .rounded-full {
+  border-radius: 4px;
+}
+
+.admin-panel [class*="shadow"] {
+  box-shadow: none !important;
+}
+
+.admin-panel span[class*="bg-success"],
+.admin-panel span[class*="bg-warning"],
+.admin-panel span[class*="bg-destructive"],
+.admin-panel span[class*="bg-info"],
+.admin-panel span[class*="bg-primary"] {
+  border: 1px solid #1A2233;
+  border-radius: 4px;
+  background: #1A2233;
+  color: #E5E7EB;
+}

@@ -12,7 +12,6 @@ interface Lead {
   credit_score_range: string | null;
   amount_seeking: number | null;
   needs: string[] | null;
-  funnel: string | null;
   status: string;
 }
 
@@ -57,7 +56,7 @@ const NurtureBotPage = () => {
     setSelectedLead(lead);
     setMessages([{
       role: 'assistant',
-      content: `I'm ready to help you nurture **${lead.contact_name}** from **${lead.company_name}**. Here's what I know:\n\n- **Industry:** ${lead.industry || 'Not specified'}\n- **Credit Range:** ${lead.credit_score_range || 'Not specified'}\n- **Seeking:** ${lead.amount_seeking ? `$${lead.amount_seeking.toLocaleString()}` : 'Not specified'}\n- **Needs:** ${lead.needs?.join(', ') || 'None specified'}\n- **Current Stage:** ${lead.funnel || 'Unassigned'}\n\nWhat would you like me to help with? I can:\n- Draft a personalized follow-up email\n- Create a nurture sequence plan\n- Suggest next steps based on their profile\n- Generate talking points for a call`
+      content: `I'm ready to help you nurture **${lead.contact_name}** from **${lead.company_name}**. Here's what I know:\n\n- **Industry:** ${lead.industry || 'Not specified'}\n- **Credit Range:** ${lead.credit_score_range || 'Not specified'}\n- **Seeking:** ${lead.amount_seeking ? `$${lead.amount_seeking.toLocaleString()}` : 'Not specified'}\n- **Needs:** ${lead.needs?.join(', ') || 'None specified'}\n- **Status:** ${lead.status || 'New'}\n\nWhat would you like me to help with? I can:\n- Draft a personalized follow-up email\n- Create a nurture sequence plan\n- Suggest next steps based on their profile\n- Generate talking points for a call`
     }]);
   };
 
@@ -70,7 +69,7 @@ const NurtureBotPage = () => {
 
     try {
       const leadContext = selectedLead
-        ? `Lead: ${selectedLead.contact_name}, Company: ${selectedLead.company_name}, Industry: ${selectedLead.industry}, Credit: ${selectedLead.credit_score_range}, Seeking: $${selectedLead.amount_seeking}, Needs: ${selectedLead.needs?.join(', ')}, Stage: ${selectedLead.funnel}`
+        ? `Lead: ${selectedLead.contact_name}, Company: ${selectedLead.company_name}, Industry: ${selectedLead.industry}, Credit: ${selectedLead.credit_score_range}, Seeking: $${selectedLead.amount_seeking}, Needs: ${selectedLead.needs?.join(', ')}, Status: ${selectedLead.status}`
         : 'No specific lead selected';
 
       const systemPrompt = `You are a lead nurturing assistant for Credibility Suite, a business fundability platform owned by Maurice Stewart. Help the admin craft personalized outreach, follow-up emails, nurture sequences, and strategic recommendations for their leads. Be professional, warm, and focused on helping businesses become capital-ready. Context: ${leadContext}`;
@@ -98,7 +97,7 @@ const NurtureBotPage = () => {
   const quickActions = [
     { label: 'Draft follow-up email', prompt: 'Draft a personalized follow-up email for this lead that focuses on their funding needs and how Credibility Suite can help.' },
     { label: 'Create nurture plan', prompt: 'Create a 4-week nurture sequence plan for this lead with specific touchpoints, messaging themes, and call-to-actions.' },
-    { label: 'Suggest next steps', prompt: 'Based on this lead\'s profile and current stage, what are the top 3 recommended next steps to move them forward?' },
+    { label: 'Suggest next steps', prompt: 'Based on this lead\'s profile and current status, what are the top 3 recommended next steps to move them forward?' },
     { label: 'Call talking points', prompt: 'Generate 5-7 talking points for a phone call with this lead, focusing on their specific needs and pain points.' },
   ];
 
@@ -123,7 +122,7 @@ const NurtureBotPage = () => {
             >
               <div className="text-xs font-bold text-foreground">{lead.contact_name}</div>
               <div className="text-[10px] text-muted-foreground">{lead.company_name}</div>
-              <div className="text-[9px] text-primary/70 mt-0.5 capitalize">{lead.funnel || 'unassigned'}</div>
+              <div className="text-[9px] text-primary/70 mt-0.5 capitalize">{lead.status || 'new'}</div>
             </button>
           ))}
           {leads.length === 0 && (

@@ -147,7 +147,6 @@ export type Database = {
           created_at: string
           credit_score_range: string | null
           email: string
-          funnel: string | null
           id: string
           industry: string | null
           naics_code: string | null
@@ -164,7 +163,6 @@ export type Database = {
           created_at?: string
           credit_score_range?: string | null
           email: string
-          funnel?: string | null
           id?: string
           industry?: string | null
           naics_code?: string | null
@@ -181,7 +179,6 @@ export type Database = {
           created_at?: string
           credit_score_range?: string | null
           email?: string
-          funnel?: string | null
           id?: string
           industry?: string | null
           naics_code?: string | null

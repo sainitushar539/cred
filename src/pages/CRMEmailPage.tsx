@@ -7,7 +7,6 @@ interface Lead {
   contact_name: string;
   email: string;
   company_name: string;
-  funnel: string | null;
   status: string;
 }
 
@@ -152,7 +151,7 @@ const CRMEmailPage = () => {
                   <div className="text-xs font-semibold text-foreground truncate">{lead.contact_name}</div>
                   <div className="text-[10px] text-muted-foreground truncate">{lead.email}</div>
                 </div>
-                <span className="text-[9px] capitalize px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{lead.funnel || 'new'}</span>
+                <span className="text-[9px] capitalize px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">{lead.status || 'new'}</span>
               </label>
             ))}
           </div>

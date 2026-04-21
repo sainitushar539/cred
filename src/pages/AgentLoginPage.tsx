@@ -19,7 +19,7 @@ const AgentLoginPage = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
-  if (!authLoading && user) return <Navigate to="/dashboard" replace />;
+  if (!authLoading && user) return <Navigate to="/agent-dashboard" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ const AgentLoginPage = () => {
       setError(signInError.message);
       return;
     }
-    navigate('/dashboard', { replace: true });
+    navigate('/agent-dashboard', { replace: true });
   };
 
   return (

@@ -94,12 +94,32 @@ const DashboardLayout = () => {
     '--info': '217 62% 55%',
   } as CSSProperties;
 
+  const clientTheme = {
+    '--background': '0 0% 100%',
+    '--foreground': '222 47% 11%',
+    '--card': '0 0% 100%',
+    '--card-foreground': '222 47% 11%',
+    '--secondary': '220 14% 96%',
+    '--secondary-foreground': '222 47% 11%',
+    '--muted': '220 14% 96%',
+    '--muted-foreground': '215 16% 47%',
+    '--border': '214 32% 91%',
+    '--input': '214 32% 91%',
+    '--primary': '222 89% 56%',
+    '--primary-foreground': '0 0% 100%',
+    '--accent': '222 89% 56%',
+    '--ring': '222 89% 56%',
+    '--success': '158 64% 42%',
+    '--warning': '38 92% 50%',
+    '--info': '217 91% 60%',
+  } as CSSProperties;
+
   const sidebarWidth = sidebarCollapsed ? 84 : 280;
 
   return (
     <div
-      className={`flex min-h-screen ${isAdmin ? 'admin-panel bg-[#070b13] text-foreground' : 'bg-secondary/50'}`}
-      style={isAdmin ? adminTheme : undefined}
+      className={`flex min-h-screen ${isAdmin ? 'admin-panel bg-[#070b13] text-foreground' : 'bg-[#F4F7FB] text-slate-900'}`}
+      style={isAdmin ? adminTheme : clientTheme}
     >
       {/* Mobile overlay */}
       {isMobile && sidebarOpen && (
@@ -130,6 +150,7 @@ const DashboardLayout = () => {
           subtitle={pageInfo.subtitle}
           onLoanQueue={isAdmin && activePage === 'dashboard' ? () => setActivePage('loans') : undefined}
           onMenuToggle={isMobile ? () => setSidebarOpen(!sidebarOpen) : undefined}
+          variant={isAdmin ? 'admin' : 'client'}
         />
         <main className={`${isAdmin ? 'p-5 md:p-7' : 'p-4 md:p-6'} flex-1 overflow-x-hidden`}>
           {isAdmin ? (

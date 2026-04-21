@@ -52,19 +52,6 @@ const LeadFinderPage = () => {
       if (data) setLeads(data as Lead[]);
       setLoading(false);
     });
-    const channel = supabase
-      .channel('lead-finder-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setLeads(prev => [payload.new as Lead, ...prev.filter(l => l.id !== (payload.new as Lead).id)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setLeads(prev => prev.map(l => l.id === (payload.new as Lead).id ? payload.new as Lead : l));
-        } else if (payload.eventType === 'DELETE') {
-          setLeads(prev => prev.filter(l => l.id !== (payload.old as Lead).id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const getAgent = (lead: Lead) => {

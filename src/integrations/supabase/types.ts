@@ -190,6 +190,57 @@ export type Database = {
         }
         Relationships: []
       }
+      communication_settings: {
+        Row: {
+          created_at: string
+          id: string
+          smtp_from_email: string | null
+          smtp_from_name: string | null
+          smtp_host: string | null
+          smtp_password: string | null
+          smtp_port: number | null
+          smtp_secure: boolean
+          smtp_user: string | null
+          twilio_account_sid: string | null
+          twilio_auth_token: string | null
+          twilio_from_number: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean
+          smtp_user?: string | null
+          twilio_account_sid?: string | null
+          twilio_auth_token?: string | null
+          twilio_from_number?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          smtp_from_email?: string | null
+          smtp_from_name?: string | null
+          smtp_host?: string | null
+          smtp_password?: string | null
+          smtp_port?: number | null
+          smtp_secure?: boolean
+          smtp_user?: string | null
+          twilio_account_sid?: string | null
+          twilio_auth_token?: string | null
+          twilio_from_number?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string

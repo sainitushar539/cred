@@ -100,7 +100,7 @@ serve(async (req) => {
       });
     }
 
-    const { messages } = await req.json();
+    const { messages, stream = true } = await req.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return new Response(JSON.stringify({ error: "Messages array required" }), {
@@ -114,13 +114,20 @@ serve(async (req) => {
       });
     }
 
-    // Validate every message: only user/assistant roles allowed, length-bound content
+    // Validate every message and allow an optional custom system prompt override.
     const sanitized = [];
+    let customSystemPrompt = SYSTEM_PROMPT;
     for (const m of messages) {
       if (!m || typeof m !== "object") {
         return new Response(JSON.stringify({ error: "Invalid message format." }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+      }
+      if (m.role === "system") {
+        if (typeof m.content === "string" && m.content.length > 0 && m.content.length <= MAX_MSG_LEN) {
+          customSystemPrompt = m.content;
+        }
+        continue;
       }
       if (!["user", "assistant"].includes(m.role)) {
         return new Response(JSON.stringify({ error: "Invalid message role." }), {
@@ -151,10 +158,10 @@ serve(async (req) => {
       body: JSON.stringify({
         model,
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: customSystemPrompt },
           ...sanitized,
         ],
-        stream: true,
+        stream: stream !== false,
       }),
     });
 
@@ -172,6 +179,14 @@ serve(async (req) => {
       const t = await response.text();
       console.error("AI gateway error:", response.status, t);
       throw new Error("AI gateway error");
+    }
+
+    if (stream === false) {
+      const aiData = await response.json();
+      const content = aiData.choices?.[0]?.message?.content || "";
+      return new Response(JSON.stringify({ reply: content }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     return new Response(response.body, {

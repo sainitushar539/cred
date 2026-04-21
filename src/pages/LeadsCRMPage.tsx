@@ -183,20 +183,6 @@ const LeadsCRMPage = () => {
 
   useEffect(() => {
     fetchLeads();
-    const channel = supabase
-      .channel('leads-crm-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setLeads(prev => [payload.new as Lead, ...prev.filter(l => l.id !== (payload.new as Lead).id)]);
-          toast.success(`New lead: ${(payload.new as Lead).contact_name}`);
-        } else if (payload.eventType === 'UPDATE') {
-          setLeads(prev => prev.map(l => l.id === (payload.new as Lead).id ? payload.new as Lead : l));
-        } else if (payload.eventType === 'DELETE') {
-          setLeads(prev => prev.filter(l => l.id !== (payload.old as Lead).id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchLeads = async () => {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Mail, Send, Users, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Mail, Users, Clock, CheckCircle2, Copy } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Lead {
   id: string;
@@ -43,26 +44,12 @@ const CRMEmailPage = () => {
   const [selectedTemplate, setSelectedTemplate] = useState(emailTemplates[0]);
   const [customSubject, setCustomSubject] = useState(emailTemplates[0].subject);
   const [customBody, setCustomBody] = useState(emailTemplates[0].body);
-  const [sending, setSending] = useState(false);
   const [sentLog, setSentLog] = useState<{ email: string; time: string; template: string; status: string }[]>([]);
 
   useEffect(() => {
     supabase.from('leads').select('*').order('created_at', { ascending: false }).then(({ data }) => {
       if (data) setLeads(data as Lead[]);
     });
-    const channel = supabase
-      .channel('crm-email-leads-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'leads' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setLeads(prev => [payload.new as Lead, ...prev.filter(l => l.id !== (payload.new as Lead).id)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setLeads(prev => prev.map(l => l.id === (payload.new as Lead).id ? payload.new as Lead : l));
-        } else if (payload.eventType === 'DELETE') {
-          setLeads(prev => prev.filter(l => l.id !== (payload.old as Lead).id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const handleTemplateChange = (templateId: string) => {
@@ -92,39 +79,35 @@ const CRMEmailPage = () => {
     return body.replace(/\{\{name\}\}/g, lead.contact_name).replace(/\{\{company\}\}/g, lead.company_name);
   };
 
-  const handleSend = async () => {
+  const personalizeSubject = (subject: string, lead: Lead) => {
+    return subject.replace(/\{\{name\}\}/g, lead.contact_name).replace(/\{\{company\}\}/g, lead.company_name);
+  };
+
+  const copyDraft = async () => {
     if (selectedLeads.size === 0) return;
-    setSending(true);
+    const firstLead = leads.find(l => selectedLeads.has(l.id));
+    if (!firstLead) return;
 
-    const targetLeads = leads.filter(l => selectedLeads.has(l.id));
-    const newLogs: typeof sentLog = [];
+    const subject = personalizeSubject(customSubject, firstLead);
+    const body = personalizeBody(customBody, firstLead);
+    await navigator.clipboard.writeText(`Subject: ${subject}\n\n${body}`);
 
-    for (const lead of targetLeads) {
-      // Log the email send (in a real implementation, this would call an email API)
-      newLogs.push({
-        email: lead.email,
+    setSentLog(prev => [
+      {
+        email: firstLead.email,
         time: new Date().toLocaleTimeString(),
         template: selectedTemplate.name,
-        status: 'queued',
-      });
+        status: 'ready',
+      },
+      ...prev,
+    ]);
 
-      // Update lead status to contacted
-      await supabase.from('leads').update({ status: 'contacted' }).eq('id', lead.id);
-    }
-
-    setSentLog(prev => [...newLogs, ...prev]);
-    setSelectedLeads(new Set());
-    setSending(false);
-
-    // Refresh leads
-    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-    if (data) setLeads(data as Lead[]);
+    toast.success('Draft copied');
   };
 
   return (
     <div className="animate-fade-up space-y-4">
       <div className="grid grid-cols-[1fr_1fr] gap-4 max-lg:grid-cols-1">
-        {/* Left: Recipients */}
         <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col max-h-[500px]">
           <div className="px-4 py-3 bg-background border-b border-border flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -160,7 +143,6 @@ const CRMEmailPage = () => {
           </div>
         </div>
 
-        {/* Right: Compose */}
         <div className="bg-card border border-border rounded-xl overflow-hidden flex flex-col">
           <div className="px-4 py-3 bg-background border-b border-border flex items-center gap-2">
             <Mail className="w-4 h-4 text-primary" />
@@ -199,25 +181,24 @@ const CRMEmailPage = () => {
               <p className="text-[9px] text-muted-foreground mt-1">Use {'{{name}}'} and {'{{company}}'} for personalization</p>
             </div>
             <button
-              onClick={handleSend}
-              disabled={sending || selectedLeads.size === 0}
+              onClick={copyDraft}
+              disabled={selectedLeads.size === 0}
               className="w-full bg-gradient-to-r from-[hsl(230,80%,56%)] to-[hsl(260,70%,60%)] text-white text-sm font-semibold py-3 rounded-xl border-none cursor-pointer disabled:opacity-50 transition-all hover:shadow-lg flex items-center justify-center gap-2"
             >
-              <Send className="w-4 h-4" />
-              {sending ? 'Sending...' : `Send to ${selectedLeads.size} Lead${selectedLeads.size !== 1 ? 's' : ''}`}
+              <Copy className="w-4 h-4" />
+              {`Copy draft for ${selectedLeads.size} Lead${selectedLeads.size !== 1 ? 's' : ''}`}
             </button>
           </div>
         </div>
       </div>
 
-      {/* Send log */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-4 py-3 bg-background border-b border-border flex items-center gap-2">
           <Clock className="w-4 h-4 text-primary" />
-          <span className="text-[9px] font-bold tracking-[2px] uppercase text-primary font-mono">Recent Email Activity</span>
+          <span className="text-[9px] font-bold tracking-[2px] uppercase text-primary font-mono">Recent Draft Activity</span>
         </div>
         {sentLog.length === 0 ? (
-          <div className="p-6 text-center text-muted-foreground text-sm">No emails sent this session</div>
+          <div className="p-6 text-center text-muted-foreground text-sm">No drafts copied this session</div>
         ) : (
           <div className="divide-y divide-border/40">
             {sentLog.map((log, i) => (

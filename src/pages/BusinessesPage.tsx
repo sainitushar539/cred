@@ -29,19 +29,6 @@ const BusinessesPage = () => {
     supabase.from('businesses').select('id,name,industry,score,status,capital_need,top_gap,created_at').order('created_at', { ascending: false }).then(({ data }) => {
       if (data) setDbBusinesses(data as DBBusiness[]);
     });
-    const channel = supabase
-      .channel('businesses-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'businesses' }, (payload) => {
-        if (payload.eventType === 'INSERT') {
-          setDbBusinesses(prev => [payload.new as DBBusiness, ...prev.filter(b => b.id !== (payload.new as DBBusiness).id)]);
-        } else if (payload.eventType === 'UPDATE') {
-          setDbBusinesses(prev => prev.map(b => b.id === (payload.new as DBBusiness).id ? payload.new as DBBusiness : b));
-        } else if (payload.eventType === 'DELETE') {
-          setDbBusinesses(prev => prev.filter(b => b.id !== (payload.old as DBBusiness).id));
-        }
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const createBusiness = async () => {

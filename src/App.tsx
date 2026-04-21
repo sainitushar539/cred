@@ -35,17 +35,17 @@ const App = () => (
             <Route path="/privacy" element={<PrivacyPolicyPage />} />
             <Route path="/about" element={<AboutPage />} />
             <Route path="/dashboard" element={
-              <ProtectedRoute>
+              <ProtectedRoute redirectTo="/auth">
                 <DashboardLayout />
               </ProtectedRoute>
             } />
             <Route path="/client-dashboard" element={
-              <ProtectedRoute>
+              <ProtectedRoute redirectTo="/auth">
                 <DashboardLayout />
               </ProtectedRoute>
             } />
             <Route path="/agent-dashboard" element={
-              <ProtectedRoute>
+              <ProtectedRoute redirectTo="/agent-login">
                 <DashboardLayout />
               </ProtectedRoute>
             } />

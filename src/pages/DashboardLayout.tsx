@@ -1,4 +1,4 @@
-import { CSSProperties, useState } from 'react';
+import { CSSProperties, useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -46,6 +46,23 @@ const DashboardLayout = () => {
   const { isAdmin, loading } = useUserRole();
   const isMobile = useIsMobile();
 
+  const handleNavigate = (page: string) => {
+    setActivePage(page);
+    setSidebarOpen(false);
+  };
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const customEvent = event as CustomEvent<{ page: string }>;
+      if (customEvent.detail?.page) {
+        handleNavigate(customEvent.detail.page);
+      }
+    };
+
+    window.addEventListener('admin:navigate', handler as EventListener);
+    return () => window.removeEventListener('admin:navigate', handler as EventListener);
+  }, []);
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -56,11 +73,6 @@ const DashboardLayout = () => {
 
   const pageTitles = isAdmin ? adminPageTitles : clientPageTitles;
   const pageInfo = pageTitles[activePage] || pageTitles.dashboard;
-
-  const handleNavigate = (page: string) => {
-    setActivePage(page);
-    setSidebarOpen(false);
-  };
 
   const adminTheme = {
     '--background': '222 39% 7%',

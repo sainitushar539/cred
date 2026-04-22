@@ -3,7 +3,7 @@ import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUserRole } from '@/hooks/useUserRole';
-import { consumePendingFundingSnapshot, persistFundingSnapshot } from '@/lib/clientDashboardData';
+import { claimClientIntakeFromLead, consumePendingFundingSnapshot, persistFundingSnapshot } from '@/lib/clientDashboardData';
 import { Brain, Eye, EyeOff, KeyRound, Shield } from 'lucide-react';
 
 /**
@@ -33,12 +33,13 @@ const AuthPage = () => {
     return data?.some((item: any) => item.role === 'admin') ? 'admin' : 'client';
   };
 
-  const persistPendingClientSnapshot = async (userId: string, nextRole: string) => {
+  const persistPendingClientSnapshot = async (userId: string, nextRole: string, userEmail: string) => {
     if (nextRole !== 'client') return;
     const pending = consumePendingFundingSnapshot();
     if (pending) {
       await persistFundingSnapshot(userId, pending);
     }
+    await claimClientIntakeFromLead(userId, userEmail);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -80,7 +81,7 @@ const AuthPage = () => {
 
         if (data.session) {
           const nextRole = await getRoleForUser(data.user.id);
-          await persistPendingClientSnapshot(data.user.id, nextRole);
+          await persistPendingClientSnapshot(data.user.id, nextRole, cleanEmail);
           navigate(nextRole === 'admin' ? '/agent-dashboard' : '/client-dashboard', { replace: true });
         } else {
           setMessage('Account created! Check your email for the verification link, then sign in.');
@@ -91,7 +92,7 @@ const AuthPage = () => {
         });
         if (signInError) throw signInError;
         const nextRole = data.user ? await getRoleForUser(data.user.id) : 'client';
-        if (data.user) await persistPendingClientSnapshot(data.user.id, nextRole);
+        if (data.user) await persistPendingClientSnapshot(data.user.id, nextRole, cleanEmail);
         navigate(nextRole === 'admin' ? '/agent-dashboard' : '/client-dashboard', { replace: true });
       }
     } catch (err: any) {

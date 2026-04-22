@@ -4,6 +4,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Brain, Sparkles, ArrowRight, ArrowLeft, Check, Lock, Zap, Target, DollarSign, FileText, TrendingUp, Play, CreditCard } from 'lucide-react';
 import PublicNav from '@/components/PublicNav';
+import { buildQuestionnaireResult, normalizeGoals, toJson } from '@/lib/questionnaire';
+import { claimClientIntakeFromLead } from '@/lib/clientDashboardData';
 
 /* ──────── scoring options ──────── */
 const creditScoreOptions = [
@@ -24,7 +26,7 @@ const revenueOptions = [
 
 const timeOptions = [
   { label: '10+ years', value: '10+', points: 10 },
-  { label: '2–10 years', value: '2-10', points: 8 },
+  { label: '2-5 years', value: '2-5', points: 8 },
   { label: 'Less than 2 years', value: '<2', points: 4 },
   { label: 'Not started yet', value: 'not-started', points: 1 },
 ];
@@ -41,7 +43,7 @@ const generateInsights = (credit: string, revenue: string, time: string) => {
   const insights: string[] = [];
   const highCredit = ['780+', '740-779'].includes(credit);
   const hasRevenue = !['pre', 'under100k'].includes(revenue);
-  const established = ['10+', '2-10'].includes(time);
+  const established = ['10+', '2-5', '2-5+', '2-10'].includes(time);
   if (highCredit && hasRevenue) insights.push('You are strong in credit and revenue — excellent foundation for traditional lending.');
   else if (highCredit && !hasRevenue) insights.push('Strong credit but revenue needs growth — focus on sales acceleration.');
   else if (!highCredit && hasRevenue) insights.push('Revenue is solid but credit needs work — consider credit repair first.');
@@ -56,7 +58,7 @@ const generateInsights = (credit: string, revenue: string, time: string) => {
 
 const generateCanvasSnapshot = (businessName: string, revenue: string, time: string, credit: string) => {
   const hasRevenue = !['pre', 'under100k'].includes(revenue);
-  const established = ['10+', '2-10'].includes(time);
+  const established = ['10+', '2-5', '2-5+', '2-10'].includes(time);
   const highCredit = ['780+', '740-779'].includes(credit);
   return [
     { title: 'Value Proposition', content: hasRevenue
@@ -270,16 +272,7 @@ const splitName = (value?: string | null) => {
   return { first: parts[0] || '', last: parts.slice(1).join(' ') };
 };
 
-const mapSavedGoal = (value?: unknown) => {
-  const goals = Array.isArray(value) ? value : value ? [value] : [];
-  const normalized = goals.map((item) => String(item));
-  if (normalized.some((item) => ['funding', 'loan'].includes(item))) return 'loan';
-  if (normalized.some((item) => ['credit'].includes(item))) return 'credit';
-  if (normalized.some((item) => ['lead_gen', 'coaching', 'grow', 'growth'].includes(item))) return 'grow';
-  if (normalized.some((item) => ['financial_health', 'business_plan', 'documents'].includes(item))) return 'fundability';
-  if (normalized.length > 0) return 'exploring';
-  return '';
-};
+const mapSavedGoals = (value?: unknown) => normalizeGoals(Array.isArray(value) ? value.map(String) : value ? [String(value)] : []);
 
 const mapCredit = (value?: unknown) => {
   const creditMap: Record<string, string> = {
@@ -311,7 +304,7 @@ const mapTimeInBusiness = (value?: unknown) => {
     'pre-revenue': 'not-started',
     'under-1': '<2',
     '1-2': '<2',
-    '3-5': '2-10',
+    '3-5': '2-5',
     '5-plus': '10+',
   };
   return timeMap[String(value || '')] || String(value || '');
@@ -326,7 +319,7 @@ const OnboardingPage = () => {
   const [hydrating, setHydrating] = useState(true);
   const [hasLeadData, setHasLeadData] = useState(false);
 
-  const [goal, setGoal] = useState('');
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -369,7 +362,7 @@ const OnboardingPage = () => {
     if (lead?.phone) setPhone((prev) => prev || lead.phone);
     if (companyName) setBusinessName((prev) => prev || companyName);
     if (savedWebsite) setWebsite((prev) => prev || savedWebsite);
-    if (savedGoals) setGoal((prev) => prev || mapSavedGoal(savedGoals));
+    if (savedGoals) setSelectedGoals((prev) => prev.length > 0 ? prev : mapSavedGoals(savedGoals));
     if (savedCredit) setCreditScore((prev) => prev || savedCredit);
     if (savedRevenue) setRevenue((prev) => prev || savedRevenue);
     if (savedTime) setTimeInBusiness((prev) => prev || savedTime);
@@ -410,13 +403,20 @@ const OnboardingPage = () => {
       const userEmail = user.email?.trim() || '';
 
       try {
-        const [{ data: existingBusiness }, { data: profile }, leadResult] = await Promise.all([
+        const [{ data: existingBusiness }, { data: existingResult }, { data: profile }, leadResult] = await Promise.all([
           supabase
             .from('businesses')
             .select('id')
             .eq('user_id', user.id)
             .order('updated_at', { ascending: false })
             .limit(1)
+            .maybeSingle(),
+          supabase
+            .from('questionnaire_results')
+            .select('id, questionnaire_completed, score')
+            .eq('user_id', user.id)
+            .eq('questionnaire_completed', true)
+            .gt('score', 0)
             .maybeSingle(),
           supabase
             .from('profiles')
@@ -436,7 +436,13 @@ const OnboardingPage = () => {
 
         if (cancelled) return;
 
-        if (existingBusiness?.id) {
+        if (existingBusiness?.id || existingResult?.id) {
+          navigate('/client-dashboard', { replace: true });
+          return;
+        }
+
+        const claimedLeadIntake = await claimClientIntakeFromLead(user.id, userEmail);
+        if (claimedLeadIntake) {
           navigate('/client-dashboard', { replace: true });
           return;
         }
@@ -477,6 +483,7 @@ const OnboardingPage = () => {
 
   const scoreInfo = getScoreLabel(fundabilityScore);
   const insights = useMemo(() => generateInsights(creditScore, revenue, timeInBusiness), [creditScore, revenue, timeInBusiness]);
+  const toggleGoal = (value: string) => setSelectedGoals(prev => prev.includes(value) ? prev.filter(goal => goal !== value) : [...prev, value]);
 
   const handleSignUp = async () => {
     setError(''); setLoading(true);
@@ -494,23 +501,35 @@ const OnboardingPage = () => {
         targetUserId = authData.user.id;
       }
 
-      const checklist = [
-        { label: 'Business License / Registration', complete: false },
-        { label: 'EIN / Tax ID', complete: false },
-        { label: 'Business Bank Account', complete: false },
-        { label: 'Bank Statements (3 months)', complete: false },
-        { label: 'Tax Returns (2 years)', complete: false },
-        { label: 'Profit & Loss Statement', complete: false },
-        { label: 'Balance Sheet', complete: false },
-        { label: 'Business Plan', complete: false },
-        { label: 'Financial Projections', complete: false },
-        { label: 'Operating Agreement', complete: false },
-        { label: 'Debt Schedule', complete: false },
-        { label: 'Personal Financial Statement', complete: false },
-        { label: 'Insurance Documentation', complete: false },
-      ];
+      const questionnaire = buildQuestionnaireResult({
+        businessName: businessName || `${firstName}'s Business`,
+        email: email.trim(),
+        selectedGoals,
+        creditScoreRange: creditScore,
+        revenueRange: revenue,
+        timeInBusiness,
+        score: fundabilityScore || 10,
+        answers: {
+          firstName,
+          lastName,
+          phone,
+          website,
+          businessDescription: bizDescription,
+          businessLocation: bizLocation,
+          businessStage: bizStage,
+          profitable,
+          financials,
+          cashflow,
+          customers,
+          revenueModel,
+          bottleneck,
+          fundingPurposes,
+          fundingTimeline,
+        },
+      });
+      const checklist = questionnaire.checklist;
       const notesArr = [
-        `Goal: ${goal}`, `Credit: ${creditScore}`, `Revenue: ${revenue}`, `Time: ${timeInBusiness}`,
+        `Goals: ${selectedGoals.join(', ')}`, `Credit: ${creditScore}`, `Revenue: ${revenue}`, `Time: ${timeInBusiness}`,
         `Location: ${bizLocation}`, `Stage: ${bizStage}`, `Profitable: ${profitable}`,
         `Financials: ${financials}`, `Cashflow: ${cashflow}`, `Customers: ${customers}`,
         `Revenue model: ${revenueModel}`, `Bottleneck: ${bottleneck}`,
@@ -540,7 +559,7 @@ const OnboardingPage = () => {
 
       const businessPayload = {
         user_id: targetUserId, name: businessName || `${firstName}'s Business`,
-        industry: null, capital_need: null, checklist, score: fundabilityScore || 10,
+        industry: null, capital_need: null, checklist: toJson(checklist), score: fundabilityScore || 10,
         status: 'assessment', notes: notesArr.join('. '),
         top_gap: fundabilityScore < 60 ? 'Credit & Revenue' : 'Documentation',
         loan_product: fundabilityScore >= 80 ? 'standard' : fundabilityScore >= 60 ? 'revenue-based' : 'building',
@@ -552,10 +571,32 @@ const OnboardingPage = () => {
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      const { error: businessError } = existingBusiness?.id
+      const businessWrite = existingBusiness?.id
         ? await supabase.from('businesses').update(businessPayload).eq('id', existingBusiness.id)
-        : await supabase.from('businesses').insert(businessPayload);
-      if (businessError) throw businessError;
+        : await supabase.from('businesses').insert(businessPayload).select('id').single();
+      if (businessWrite.error) throw businessWrite.error;
+
+      const businessId = existingBusiness?.id || businessWrite.data?.id || null;
+      const questionnairePayload = {
+        user_id: targetUserId,
+        business_id: businessId,
+        email: email.trim().toLowerCase(),
+        selected_goals: questionnaire.selectedGoals,
+        credit_score_range: creditScore,
+        revenue_range: revenue,
+        time_in_business: timeInBusiness,
+        answers: toJson(questionnaire.answers),
+        score: fundabilityScore || 10,
+        diagnosis_summary: questionnaire.diagnosis,
+        roadmap: toJson(questionnaire.roadmap),
+        checklist: toJson(checklist),
+        questionnaire_completed: true,
+        completed_at: new Date().toISOString(),
+      };
+      const { error: questionnaireError } = await supabase
+        .from('questionnaire_results')
+        .upsert(questionnairePayload, { onConflict: 'user_id' });
+      if (questionnaireError) throw questionnaireError;
 
       navigate('/client-dashboard', { replace: true });
     } catch (e: any) { setError(e.message || 'Something went wrong'); }
@@ -625,7 +666,7 @@ const OnboardingPage = () => {
               <div className="bg-background rounded-2xl border border-border shadow-sm p-6 space-y-6">
                 <div>
                   <label className="block text-sm font-semibold text-foreground/80 mb-3">What are you here for? <span className="text-destructive">*</span></label>
-                  <OptionPill options={goalOptions} selected={goal} onSelect={setGoal} />
+                  <MultiPill options={goalOptions} selected={selectedGoals} onToggle={toggleGoal} />
                 </div>
                 <div className="space-y-0">
                   <div className="grid grid-cols-2 gap-4">
@@ -643,7 +684,7 @@ const OnboardingPage = () => {
                 </div>
               </div>
               <div className="flex gap-3 mt-6">
-                <PrimaryBtn onClick={() => setPhase('snapshot')} disabled={!goal || !firstName.trim() || !lastName.trim() || !email.trim() || !businessName.trim()}>
+                <PrimaryBtn onClick={() => setPhase('snapshot')} disabled={selectedGoals.length === 0 || !firstName.trim() || !lastName.trim() || !email.trim() || !businessName.trim()}>
                   Continue <ArrowRight className="w-4 h-4" />
                 </PrimaryBtn>
               </div>

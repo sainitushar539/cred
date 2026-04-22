@@ -24,7 +24,7 @@ const revenueOpts = [
 ];
 const timeOpts = [
   { label: '10+ years', value: '10+' },
-  { label: '2–10 years', value: '2-10' },
+  { label: '2-5 years', value: '2-5' },
   { label: 'Less than 2 years', value: '<2' },
   { label: 'Not started yet', value: 'not-started' },
 ];
@@ -42,7 +42,7 @@ const FundingJourney = ({ lead, onBack }: JourneyProps) => {
   const score = (() => {
     const cs = { '780+': 10, '740-779': 8, '680-739': 6, '600-680': 4, '<600': 2 }[credit] || 0;
     const rv = { '1m+': 10, '250k-1m': 8, '100k-250k': 6, 'under100k': 4, 'pre': 2 }[revenue] || 0;
-    const tb = { '10+': 10, '2-10': 8, '<2': 4, 'not-started': 1 }[time] || 0;
+    const tb = { '10+': 10, '2-5': 8, '2-5+': 10, '2-10': 8, '<2': 4, 'not-started': 1 }[time] || 0;
     return Math.round(((cs + rv + tb) / 30) * 100);
   })();
 
@@ -55,6 +55,7 @@ const FundingJourney = ({ lead, onBack }: JourneyProps) => {
       email: lead.email,
       phone: lead.phone,
       website: lead.website,
+      goals: lead.goals,
       credit,
       revenue,
       timeInBusiness: time,

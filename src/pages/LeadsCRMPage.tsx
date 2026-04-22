@@ -19,6 +19,31 @@ interface Lead {
   updated_at: string;
   responses: any;
 }
+interface QuestionnaireResult {
+  id: string;
+  user_id: string;
+  business_id: string | null;
+  email: string;
+  selected_goals: string[] | null;
+  credit_score_range: string | null;
+  revenue_range: string | null;
+  time_in_business: string | null;
+  answers: any;
+  score: number;
+  diagnosis_summary: string | null;
+  roadmap: any;
+  questionnaire_completed: boolean;
+  completed_at: string;
+  updated_at: string;
+}
+interface RepNote {
+  id: string;
+  user_id: string;
+  lead_id: string | null;
+  note: string;
+  visibility: 'internal_only' | 'client_visible';
+  created_at: string;
+}
 
 const leadStatuses = ['new', 'contacted', 'qualified', 'approved', 'funded'];
 
@@ -91,6 +116,11 @@ const LeadsCRMPage = () => {
   const [showNew, setShowNew] = useState(false);
   const [newLead, setNewLead] = useState({ contact_name: '', email: '', phone: '', company_name: '', industry: '', amount_seeking: '' });
   const [creating, setCreating] = useState(false);
+  const [questionnaireResults, setQuestionnaireResults] = useState<QuestionnaireResult[]>([]);
+  const [repNotes, setRepNotes] = useState<RepNote[]>([]);
+  const [noteText, setNoteText] = useState('');
+  const [noteVisibility, setNoteVisibility] = useState<'internal_only' | 'client_visible'>('internal_only');
+  const [savingNote, setSavingNote] = useState(false);
 
   const createLead = async () => {
     if (!newLead.contact_name || !newLead.email || !newLead.company_name) {
@@ -186,8 +216,14 @@ const LeadsCRMPage = () => {
   }, []);
 
   const fetchLeads = async () => {
-    const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
+    const [{ data }, { data: questionnaires }, { data: notes }] = await Promise.all([
+      supabase.from('leads').select('*').order('created_at', { ascending: false }),
+      supabase.from('questionnaire_results').select('*').order('updated_at', { ascending: false }),
+      supabase.from('rep_notes').select('*').order('created_at', { ascending: false }),
+    ]);
     if (data) setLeads(data as Lead[]);
+    if (questionnaires) setQuestionnaireResults(questionnaires as QuestionnaireResult[]);
+    if (notes) setRepNotes(notes as RepNote[]);
     setLoading(false);
   };
 
@@ -251,6 +287,48 @@ const LeadsCRMPage = () => {
     URL.revokeObjectURL(url);
     toast.success(`Exported ${filtered.length} leads`);
   };
+
+  const getQuestionnaireForLead = (lead: Lead | null) => {
+    if (!lead) return null;
+    const email = lead.email.toLowerCase().trim();
+    return questionnaireResults.find(result => result.email?.toLowerCase().trim() === email) || null;
+  };
+
+  const saveRepNote = async () => {
+    const questionnaire = getQuestionnaireForLead(selectedLead);
+    if (!selectedLead || !questionnaire || !noteText.trim() || !user) {
+      toast.error(questionnaire ? 'Write a note first' : 'Client must complete onboarding before notes can attach to their dashboard');
+      return;
+    }
+
+    setSavingNote(true);
+    const { data, error } = await supabase.from('rep_notes').insert({
+      user_id: questionnaire.user_id,
+      business_id: questionnaire.business_id,
+      lead_id: selectedLead.id,
+      author_id: user.id,
+      note: noteText.trim(),
+      visibility: noteVisibility,
+    }).select('*').single();
+    setSavingNote(false);
+
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+
+    if (data) setRepNotes(prev => [data as RepNote, ...prev]);
+    setNoteText('');
+    toast.success('Note saved');
+  };
+
+  const selectedQuestionnaire = getQuestionnaireForLead(selectedLead);
+  const selectedNotes = selectedLead
+    ? repNotes.filter(note =>
+        note.lead_id === selectedLead.id ||
+        (selectedQuestionnaire && note.user_id === selectedQuestionnaire.user_id)
+      )
+    : [];
 
   return (
     <div className="animate-fade-up space-y-4">
@@ -471,6 +549,94 @@ const LeadsCRMPage = () => {
                   </div>
                 </div>
               )}
+
+              <div className="pt-3 border-t border-border">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Questionnaire Result</div>
+                {selectedQuestionnaire ? (
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="bg-background border border-border rounded-xl p-3">
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Score</div>
+                        <div className="text-lg font-bold text-primary">{selectedQuestionnaire.score}</div>
+                      </div>
+                      <div className="bg-background border border-border rounded-xl p-3">
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Revenue</div>
+                        <div className="text-xs font-semibold text-foreground">{selectedQuestionnaire.revenue_range || 'N/A'}</div>
+                      </div>
+                      <div className="bg-background border border-border rounded-xl p-3">
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wider">Time</div>
+                        <div className="text-xs font-semibold text-foreground">{selectedQuestionnaire.time_in_business || 'N/A'}</div>
+                      </div>
+                    </div>
+                    {selectedQuestionnaire.selected_goals && selectedQuestionnaire.selected_goals.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {selectedQuestionnaire.selected_goals.map(goal => (
+                          <span key={goal} className="text-[10px] bg-primary/10 text-primary px-2 py-0.5 rounded-full font-medium">{goal}</span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground leading-relaxed">{selectedQuestionnaire.diagnosis_summary || 'No diagnosis summary saved.'}</p>
+                    {selectedQuestionnaire.answers && typeof selectedQuestionnaire.answers === 'object' && (
+                      <div className="bg-background border border-border rounded-xl p-3">
+                        <div className="text-[9px] text-muted-foreground uppercase tracking-wider mb-2">Saved Answers</div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {Object.entries(selectedQuestionnaire.answers).slice(0, 12).map(([key, value]) => (
+                            <div key={key}>
+                              <div className="text-[9px] text-muted-foreground uppercase tracking-wider">{key.replace(/([A-Z])/g, ' $1')}</div>
+                              <div className="text-[11px] text-foreground break-words">{Array.isArray(value) ? value.join(', ') : String(value || 'N/A')}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-[10px] text-muted-foreground">
+                      Completed {new Date(selectedQuestionnaire.completed_at).toLocaleString()}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">No completed questionnaire is tied to this client yet.</p>
+                )}
+              </div>
+
+              <div className="pt-3 border-t border-border">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2">Representative Notes</div>
+                <textarea
+                  value={noteText}
+                  onChange={e => setNoteText(e.target.value)}
+                  placeholder="Add onboarding or side notes..."
+                  className="w-full min-h-20 bg-secondary border border-border rounded-xl px-3 py-2 text-sm text-foreground outline-none focus:border-primary resize-y"
+                />
+                <div className="flex gap-2 mt-2">
+                  <select
+                    value={noteVisibility}
+                    onChange={e => setNoteVisibility(e.target.value as 'internal_only' | 'client_visible')}
+                    className="flex-1 text-xs bg-secondary border border-border rounded-xl px-3 py-2 text-foreground cursor-pointer outline-none"
+                  >
+                    <option value="internal_only">Internal only</option>
+                    <option value="client_visible">Client visible</option>
+                  </select>
+                  <button
+                    onClick={saveRepNote}
+                    disabled={savingNote || !selectedQuestionnaire}
+                    className="bg-primary text-primary-foreground text-xs font-bold px-4 py-2 rounded-xl border-none cursor-pointer hover:bg-primary/90 transition-all disabled:opacity-50"
+                  >
+                    {savingNote ? 'Saving...' : 'Save Note'}
+                  </button>
+                </div>
+                {selectedNotes.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {selectedNotes.map(note => (
+                      <div key={note.id} className="bg-background border border-border rounded-xl p-3">
+                        <div className="flex justify-between gap-2 mb-1">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-primary">{note.visibility.replace('_', ' ')}</span>
+                          <span className="text-[9px] text-muted-foreground">{new Date(note.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{note.note}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               <div className="pt-3 border-t border-border">
                 <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">

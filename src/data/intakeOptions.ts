@@ -190,11 +190,10 @@ export const BUSINESS_NEEDS = [
 ];
 
 export const TIME_IN_BUSINESS = [
-  { value: 'pre-revenue', label: 'Pre-revenue / Idea Stage' },
-  { value: 'under-1', label: 'Less than 1 year' },
-  { value: '1-2', label: '1–2 years' },
-  { value: '3-5', label: '3–5 years' },
-  { value: '5-plus', label: '5+ years' },
+  { value: '10+', label: '10+ years' },
+  { value: '2-5', label: '2-5 years' },
+  { value: '<2', label: 'Less than 2 years' },
+  { value: 'not-started', label: 'Not started yet' },
 ];
 
 export const ANNUAL_REVENUE = [
@@ -218,7 +217,7 @@ export function determineFunnel(data: {
 
   const wantsFunding = needs.includes('funding');
   const wantsCoaching = needs.includes('coaching') || needs.includes('business-plan');
-  const isEarlyStage = timeInBusiness === 'pre-revenue' || timeInBusiness === 'under-1';
+  const isEarlyStage = ['not-started', '<2', 'pre-revenue', 'under-1'].includes(timeInBusiness);
   const hasStrongCredit = creditScore === 'excellent' || creditScore === 'good';
   const hasRevenue = revenue !== 'pre-revenue' && revenue !== 'under-50k';
 

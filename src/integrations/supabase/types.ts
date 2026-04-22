@@ -139,6 +139,125 @@ export type Database = {
           },
         ]
       }
+      questionnaire_results: {
+        Row: {
+          answers: Json
+          business_id: string | null
+          checklist: Json
+          completed_at: string
+          created_at: string
+          credit_score_range: string | null
+          diagnosis_summary: string | null
+          email: string
+          id: string
+          questionnaire_completed: boolean
+          revenue_range: string | null
+          roadmap: Json
+          score: number
+          selected_goals: string[]
+          time_in_business: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          answers?: Json
+          business_id?: string | null
+          checklist?: Json
+          completed_at?: string
+          created_at?: string
+          credit_score_range?: string | null
+          diagnosis_summary?: string | null
+          email: string
+          id?: string
+          questionnaire_completed?: boolean
+          revenue_range?: string | null
+          roadmap?: Json
+          score?: number
+          selected_goals?: string[]
+          time_in_business?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          answers?: Json
+          business_id?: string | null
+          checklist?: Json
+          completed_at?: string
+          created_at?: string
+          credit_score_range?: string | null
+          diagnosis_summary?: string | null
+          email?: string
+          id?: string
+          questionnaire_completed?: boolean
+          revenue_range?: string | null
+          roadmap?: Json
+          score?: number
+          selected_goals?: string[]
+          time_in_business?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questionnaire_results_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rep_notes: {
+        Row: {
+          author_id: string | null
+          business_id: string | null
+          created_at: string
+          id: string
+          lead_id: string | null
+          note: string
+          updated_at: string
+          user_id: string
+          visibility: string
+        }
+        Insert: {
+          author_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          note: string
+          updated_at?: string
+          user_id: string
+          visibility: string
+        }
+        Update: {
+          author_id?: string | null
+          business_id?: string | null
+          created_at?: string
+          id?: string
+          lead_id?: string | null
+          note?: string
+          updated_at?: string
+          user_id?: string
+          visibility?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rep_notes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rep_notes_lead_id_fkey"
+            columns: ["lead_id"]
+            isOneToOne: false
+            referencedRelation: "leads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           amount_seeking: number | null
@@ -300,6 +419,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_client_intake_from_lead: {
+        Args: { _email: string; _user_id: string }
+        Returns: boolean
+      }
       consume_approval_code: {
         Args: { _code: string; _email: string; _user_id: string }
         Returns: boolean
